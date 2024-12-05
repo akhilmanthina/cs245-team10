@@ -100,6 +100,7 @@ if __name__ == "__main__":
     parser.add_argument("--llm_name", type=str, default="meta-llama/Llama-3.2-3B-Instruct",
                         choices=["meta-llama/Llama-3.2-3B-Instruct",
                                  "google/gemma-2-2b-it",
+                                 "meta-llama/Llama-3.2-1B-Instruct"
                                  # can add more llm models here
                                  ])
     parser.add_argument("--is_server", action="store_true", default=False,
