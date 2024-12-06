@@ -11,3 +11,7 @@ sentence_transformers
 torch
 transformers
 vllm>=0.4.2
+llama-index
+llama-index-embeddings-huggingface
+newspaper3k
+lxml[html_clean] 
