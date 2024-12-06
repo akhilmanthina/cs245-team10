@@ -1,0 +1,80 @@
+[
+    {
+        "query": "where did the ceo of salesforce previously work?",
+        "ground_truth": "marc benioff spent 13 years at oracle, before launching salesforce.",
+        "prediction": "Tim Matheson directed and co-starred in Hell Swarm, and according to a Starlog interview, he had the option to make it a pilot for a TV series.",
+        "response": " False"
+    },
+    {
+        "query": "which movie won the oscar best visual effects in 2021?",
+        "ground_truth": "tenet",
+        "prediction": "Yes, Asia is the largest continent on Earth by size.",
+        "response": " False"
+    },
+    {
+        "query": "on which date did sgml distribute dividends the first time",
+        "ground_truth": "none of the days",
+        "prediction": "Maureen Connolly, USA.",
+        "response": " False"
+    },
+    {
+        "query": "what are the countries that are located in southern africa.",
+        "ground_truth": "angola, botswana, the comoros, eswatini, lesotho, madagascar, malawi, mauritius, mozambique, namibia, south africa, zambia, and zimbabwe.",
+        "prediction": "Cheddar cheese has 20% more calcium than mozzarella cheese, with 710mg of calcium per 100 grams compared to mozzarella's 575mg.",
+        "response": " False"
+    },
+    {
+        "query": "which player took home grand slam championship in 2017?",
+        "ground_truth": "rafael nadal won his 16th grand slam title at the 2017 u.s. open",
+        "prediction": "Marta.",
+        "response": " False"
+    },
+    {
+        "query": "what is the most active volcano in the philippines?",
+        "ground_truth": "mayon volcano",
+        "prediction": "Antarctica.",
+        "response": " False"
+    },
+    {
+        "query": "what's the name of nashville's hockey team?",
+        "ground_truth": "nashville predators",
+        "prediction": "SRM's P/E ratio is n/a.",
+        "response": " False"
+    },
+    {
+        "query": "which university has a higher student-to-faculty ratio, harvard or princeton?",
+        "ground_truth": "harvard university",
+        "prediction": "Zendaya got a role in film first between Timoth\u00e9e Chalamet.",
+        "response": " False"
+    },
+    {
+        "query": "can you tell me the earnings per share of lgstw?",
+        "ground_truth": "i don't know",
+        "prediction": "Harry Potter and the Deathly Hallows \u2013 Part 2",
+        "response": " False"
+    },
+    {
+        "query": "what are 3 examples of stocks that increased in value today?",
+        "ground_truth": "here are 3 stocks that increased in value today. knsl, ttd, and coin",
+        "prediction": "The last date that GHC distributed dividends was November 30, 2023.",
+        "response": " False"
+    },
+    {
+        "query": "who directed bridget jones: the edge of reason, can you tell me?",
+        "ground_truth": "beeban kidron",
+        "prediction": "1956",
+        "response": " False"
+    },
+    {
+        "query": "what was mike epps's age at the time of next friday's release?",
+        "ground_truth": "29",
+        "prediction": "$8.6 billion.",
+        "response": " False"
+    },
+    {
+        "query": "what album did the killers release in 2004, which included the songs \"mr. brightside\" and \"jenny was a friend of mine\"?",
+        "ground_truth": "the killers released the album \"hot fuss\" in 2004, which included the songs \"mr. brightside\" and \"jenny was a friend of mine\".",
+        "prediction": "1913's The Werewolf.",
+        "response": " False"
+    }
+]
