@@ -1,6 +1,6 @@
 import bz2
 import json
-import os
+import osYou are provided with partially cleaned HTML-like references. Treat `<h2>` or `##` as headings, `<ul>` or `-` as lists, and `<p>` as paragraphs. Ignore attributes and focus on the text content. If something looks like code or a style tag, ignore it.
 from datetime import datetime
 import argparse
 
@@ -78,7 +78,8 @@ if __name__ == "__main__":
 
     parser.add_argument("--model_name", type=str, default="vanilla_baseline",
                         choices=["vanilla_baseline",
-                                 "rag_baseline"
+                                 "rag_baseline",
+                                 "html_rag_embed"
                                  # add your model here
                                  ],
                         )
@@ -86,6 +87,7 @@ if __name__ == "__main__":
     parser.add_argument("--llm_name", type=str, default="meta-llama/Llama-3.2-3B-Instruct",
                         choices=["meta-llama/Llama-3.2-3B-Instruct",
                                  "google/gemma-2-2b-it",
+                                 "meta-llama/Llama-3.2-1B-Instruct"
                                  # can add more llm models here
                                  ])
     parser.add_argument("--is_server", action="store_true", default=False,
