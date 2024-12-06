@@ -34,11 +34,11 @@ class EvaluationModel:
 
         if self.is_server:
             # initialize the model with vllm server
-            openai_api_key = "EMPTY"
-            openai_api_base = self.vllm_server
+            #openai_api_key = "EMPTY"
+            #openai_api_base = self.vllm_server
             self.llm_client = OpenAI(
-                api_key=openai_api_key,
-                base_url=openai_api_base,
+                api_key=os.environ.get("GROQ_API_KEY"),
+                base_url="https://api.groq.com/openai/v1",
             )
         else:
             # initialize the model with vllm offline inference

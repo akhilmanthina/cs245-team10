@@ -1,7 +1,8 @@
 import os
 from collections import defaultdict
 from typing import Any, Dict, List
-
+from transformers import AutoTokenizer
+import nltk
 import numpy as np
 import ray
 import torch
@@ -13,6 +14,7 @@ from sentence_transformers import SentenceTransformer
 from openai import OpenAI
 
 from tqdm import tqdm
+nltk.download("punkt")
 
 #### CONFIG PARAMETERS ---
 
@@ -35,49 +37,87 @@ SENTENTENCE_TRANSFORMER_BATCH_SIZE = 32 # TUNE THIS VARIABLE depending on the si
 
 #### CONFIG PARAMETERS END---
 
-class ChunkExtractor:
+
+class SemanticLevelChunkExtractor:
+    def __init__(self, tokenizer_name="all-MiniLM-L6-v2", max_tokens=256, model_name="paraphrase-MiniLM-L6-v2", similarity_threshold=0.8):
+        """
+        Initializes the SemanticLevelChunkExtractor with a specified tokenizer, embedding model, and parameters.
+
+        Args:
+            tokenizer_name (str): The name of the tokenizer to use (compatible with HuggingFace).
+            max_tokens (int): The maximum number of tokens per chunk.
+            model_name (str): The name of the embedding model for semantic similarity.
+            similarity_threshold (float): Threshold for cosine similarity to determine semantic boundaries.
+        """
+        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+        self.embedding_model = SentenceTransformer(model_name)
+        self.max_tokens = max_tokens
+        self.similarity_threshold = similarity_threshold
 
     @ray.remote
     def _extract_chunks(self, interaction_id, html_source):
         """
-        Extracts and returns chunks from given HTML source.
-
-        Note: This function is for demonstration purposes only.
-        We are treating an independent sentence as a chunk here,
-        but you could choose to chunk your text more cleverly than this.
+        Extracts and returns semantic-level chunks from the given HTML source.
 
         Parameters:
             interaction_id (str): Interaction ID that this HTML source belongs to.
             html_source (str): HTML content from which to extract text.
 
         Returns:
-            Tuple[str, List[str]]: A tuple containing the interaction ID and a list of sentences extracted from the HTML content.
+            Tuple[str, List[str]]: A tuple containing the interaction ID and a list of semantic-level chunks.
         """
         # Parse the HTML content using BeautifulSoup
         soup = BeautifulSoup(html_source, "lxml")
         text = soup.get_text(" ", strip=True)  # Use space as a separator, strip whitespaces
 
         if not text:
-            # Return a list with empty string when no text is extracted
             return interaction_id, [""]
 
-        # Extract offsets of sentences from the text
-        _, offsets = text_to_sentences_and_offsets(text)
+        # Tokenize into sentences
+        sentences = nltk.sent_tokenize(text)
 
-        # Initialize a list to store sentences
+        # Encode sentences into embeddings
+        sentence_embeddings = self.embedding_model.encode(sentences)
+
+        # Create semantic chunks based on similarity
         chunks = []
+        current_chunk = [sentences[0]]
+        current_chunk_embedding = sentence_embeddings[0]
 
-        # Iterate through the list of offsets and extract sentences
-        for start, end in offsets:
-            # Extract the sentence and limit its length
-            sentence = text[start:end][:MAX_CONTEXT_SENTENCE_LENGTH]
-            chunks.append(sentence)
+        for i in range(1, len(sentences)):
+            similarity = cosine_similarity(
+                current_chunk_embedding.reshape(1, -1),
+                sentence_embeddings[i].reshape(1, -1)
+            )[0][0]
 
-        return interaction_id, chunks
+            # Start a new chunk if similarity is below the threshold
+            if similarity < self.similarity_threshold:
+                chunks.append(" ".join(current_chunk))
+                current_chunk = [sentences[i]]
+                current_chunk_embedding = sentence_embeddings[i]
+            else:
+                current_chunk.append(sentences[i])
+                current_chunk_embedding = np.mean(
+                    [current_chunk_embedding, sentence_embeddings[i]], axis=0
+                )
+
+        # Append the last chunk
+        if current_chunk:
+            chunks.append(" ".join(current_chunk))
+
+        # Ensure each chunk meets the token limit
+        final_chunks = []
+        for chunk in chunks:
+            tokens = self.tokenizer.tokenize(chunk)
+            for i in range(0, len(tokens), self.max_tokens):
+                chunk_tokens = tokens[i:i + self.max_tokens]
+                final_chunks.append(self.tokenizer.convert_tokens_to_string(chunk_tokens))
+
+        return interaction_id, final_chunks
 
     def extract_chunks(self, batch_interaction_ids, batch_search_results):
         """
-        Extracts chunks from given batch search results using parallel processing with Ray.
+        Extracts semantic-level chunks from a batch of search results using parallel processing with Ray.
 
         Parameters:
             batch_interaction_ids (List[str]): List of interaction IDs.
@@ -97,18 +137,14 @@ class ChunkExtractor:
             for html_text in search_results
         ]
 
-        # Wait until all sentence extractions are complete
-        # and collect chunks for every interaction_id separately
+        # Wait until all semantic-level extractions are complete
         chunk_dictionary = defaultdict(list)
-
         for response_ref in ray_response_refs:
-            interaction_id, _chunks = ray.get(response_ref)  # Blocking call until parallel execution is complete
+            interaction_id, _chunks = ray.get(response_ref)
             chunk_dictionary[interaction_id].extend(_chunks)
 
-        # Flatten chunks and keep a map of corresponding interaction_ids
-        chunks, chunk_interaction_ids = self._flatten_chunks(chunk_dictionary)
-
-        return chunks, chunk_interaction_ids
+        # Flatten chunks and keep a map of corresponding interaction IDs
+        return self._flatten_chunks(chunk_dictionary)
 
     def _flatten_chunks(self, chunk_dictionary):
         """
@@ -135,14 +171,112 @@ class ChunkExtractor:
 
         return chunks, chunk_interaction_ids
 
-class RAGModel:
+    def __init__(self, tokenizer_name="sentence-transformers/all-MiniLM-L6-v2", max_tokens=256):
+        """
+        Initializes the TokenLevelChunkExtractor with a specified tokenizer and token limit.
+
+        Args:
+            tokenizer_name (str): The name of the tokenizer to use (compatible with HuggingFace).
+            max_tokens (int): The maximum number of tokens per chunk.
+        """
+        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+        self.max_tokens = max_tokens
+
+    @ray.remote
+    def _extract_chunks(self, interaction_id, html_source):
+        """
+        Extracts and returns token-level chunks from the given HTML source.
+
+        Parameters:
+            interaction_id (str): Interaction ID that this HTML source belongs to.
+            html_source (str): HTML content from which to extract text.
+
+        Returns:
+            Tuple[str, List[str]]: A tuple containing the interaction ID and a list of token-level chunks.
+        """
+        # Parse the HTML content using BeautifulSoup
+        soup = BeautifulSoup(html_source, "lxml")
+        text = soup.get_text(" ", strip=True)  # Use space as a separator, strip whitespaces
+
+        if not text:
+            return interaction_id, [""]
+
+        # Tokenize the text
+        tokens = self.tokenizer.tokenize(text)
+
+        # Create token-level chunks
+        chunks = []
+        for i in range(0, len(tokens), self.max_tokens):
+            chunk_tokens = tokens[i:i + self.max_tokens]
+            chunk = self.tokenizer.convert_tokens_to_string(chunk_tokens)
+            chunks.append(chunk)
+
+        return interaction_id, chunks
+
+    def extract_chunks(self, batch_interaction_ids, batch_search_results):
+        """
+        Extracts token-level chunks from a batch of search results using parallel processing with Ray.
+
+        Parameters:
+            batch_interaction_ids (List[str]): List of interaction IDs.
+            batch_search_results (List[List[Dict]]): List of search results batches, each containing HTML text.
+
+        Returns:
+            Tuple[np.ndarray, np.ndarray]: A tuple containing an array of chunks and an array of corresponding interaction IDs.
+        """
+        # Setup parallel chunk extraction using ray remote
+        ray_response_refs = [
+            self._extract_chunks.remote(
+                self,
+                interaction_id=batch_interaction_ids[idx],
+                html_source=html_text["page_result"]
+            )
+            for idx, search_results in enumerate(batch_search_results)
+            for html_text in search_results
+        ]
+
+        # Wait until all token-level extractions are complete
+        chunk_dictionary = defaultdict(list)
+        for response_ref in ray_response_refs:
+            interaction_id, _chunks = ray.get(response_ref)
+            chunk_dictionary[interaction_id].extend(_chunks)
+
+        # Flatten chunks and keep a map of corresponding interaction IDs
+        return self._flatten_chunks(chunk_dictionary)
+
+    def _flatten_chunks(self, chunk_dictionary):
+        """
+        Flattens the chunk dictionary into separate lists for chunks and their corresponding interaction IDs.
+
+        Parameters:
+            chunk_dictionary (defaultdict): Dictionary with interaction IDs as keys and lists of chunks as values.
+
+        Returns:
+            Tuple[np.ndarray, np.ndarray]: A tuple containing an array of chunks and an array of corresponding interaction IDs.
+        """
+        chunks = []
+        chunk_interaction_ids = []
+
+        for interaction_id, _chunks in chunk_dictionary.items():
+            # De-duplicate chunks within the scope of an interaction ID
+            unique_chunks = list(set(_chunks))
+            chunks.extend(unique_chunks)
+            chunk_interaction_ids.extend([interaction_id] * len(unique_chunks))
+
+        # Convert to numpy arrays for convenient slicing/masking operations later
+        chunks = np.array(chunks)
+        chunk_interaction_ids = np.array(chunk_interaction_ids)
+
+        return chunks, chunk_interaction_ids
+
+class SemRAGModel:
     """
     An example RAGModel for the KDDCup 2024 Meta CRAG Challenge
     which includes all the key components of a RAG lifecycle.
     """
     def __init__(self, llm_name="meta-llama/Llama-3.2-3B-Instruct", is_server=False, vllm_server=None):
         self.initialize_models(llm_name, is_server, vllm_server)
-        self.chunk_extractor = ChunkExtractor()
+        self.chunk_extractor = SemanticLevelChunkExtractor()
 
     def initialize_models(self, llm_name, is_server, vllm_server):
         self.llm_name = llm_name
