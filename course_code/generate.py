@@ -92,16 +92,18 @@ if __name__ == "__main__":
 
     parser.add_argument("--model_name", type=str, default="vanilla_baseline",
                         choices=["vanilla_baseline",
-                                 "rag_baseline"
+                                 "rag_baseline",
                                  # add your model here
+                                 "rag_HyDE",
+                                 "rag_HyDE_hybrid",
                                  ],
                         )
 
     parser.add_argument("--llm_name", type=str, default="meta-llama/Llama-3.2-3B-Instruct",
                         choices=["meta-llama/Llama-3.2-3B-Instruct",
                                  "google/gemma-2-2b-it",
-                                 "meta-llama/Llama-3.2-1B-Instruct"
                                  # can add more llm models here
+                                 "meta-llama/Llama-3.2-1B-Instruct",
                                  ])
     parser.add_argument("--is_server", action="store_true", default=False,
                         help="Whether we use vLLM deployed on a server or offline inference.")
@@ -131,8 +133,13 @@ if __name__ == "__main__":
     elif model_name == "rag_baseline":
         from rag_baseline import RAGModel
         model = RAGModel(llm_name=llm_name, is_server=args.is_server, vllm_server=args.vllm_server)
-    # elif model_name == "your_model":
+    elif model_name == "rag_HyDE":
     #     add your model here
+        from rag_HyDE import RAGHyDEModel
+        model = RAGHyDEModel(llm_name=llm_name, is_server=args.is_server, vllm_server=args.vllm_server)
+    elif model_name == "rag_HyDE_hybrid":
+        from rag_HyDE_hybrid import HybridHyDEModel
+        model = HybridHyDEModel(llm_name=llm_name, is_server=args.is_server, vllm_server=args.vllm_server)
     else:
         raise ValueError("Model name not recognized.")
 
