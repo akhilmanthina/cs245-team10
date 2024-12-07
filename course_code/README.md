@@ -86,13 +86,13 @@ The generated predictions are saved under the `./output/data/{model_name` direct
 Different models can be used by changing the model name.
 
 # List of different models:
-  - vanilla_baseline
-  - rag_baseline
-  - rag_HyDE
-  - rag_HyDE_hybrid
-  - prompt_eng
-  - reduced_top_k
-  - prompt_eng_threshold
+  - **vanilla_baseline**: baseline model without RAG, only LLM generation
+  - **rag_baseline**: baseline model with RAG, no further improvements
+  - **rag_HyDE**: RAG model with query translation using HyDE
+  - **rag_HyDE_hybrid**: RAG model with a variation of HyDE that averages cosine similarity scores
+  - **prompt_eng**: RAG model with prompt engineering by including cosine similarity scores in prompt with references
+  - **reduced_top_k**: RAG model with lower bound cosine similarity score threshold
+  - **prompt_eng_threshold**: RAG model with prompt engineering and threshold 
   [ ADD UR MODELS HERE]
   
  To evaluate the model performance use:
