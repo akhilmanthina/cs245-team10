@@ -139,7 +139,7 @@ class ChunkExtractor:
         return docs
 
 
-class RAGModelSaim:
+class SentenceModelVariationRAG:
     """
     An example RAGModel for the KDDCup 2024 Meta CRAG Challenge
     which includes all the key components of a RAG lifecycle.

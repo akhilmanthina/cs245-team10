@@ -99,7 +99,8 @@ if __name__ == "__main__":
                                  "rag_HyDE_hybrid",
                                  "prompt_eng",
                                  "reduced_top_k",
-                                 "prompt_eng_threshold"
+                                 "prompt_eng_threshold",
+                                 "sentence_model_variation"
                                  ],
                         )
 
@@ -157,6 +158,9 @@ if __name__ == "__main__":
     elif model_name == "prompt_eng_threshold":
         from prompt_eng_threshold import ThresholdPromptModel
         model = ThresholdPromptModel(llm_name=llm_name, is_server=args.is_server, vllm_server=args.vllm_server)
+    elif model_name =="sentence_model_variation":
+        from sentence_model_variation import SentenceModelVariationRAG
+        model = SentenceModelVariationRAG(llm_name=llm_name, is_server=args.is_server, vllm_server=args.vllm_server)
     else:
         raise ValueError("Model name not recognized.")
 

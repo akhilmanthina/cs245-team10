@@ -1,6 +1,6 @@
 import bz2
 import json
-import osYou are provided with partially cleaned HTML-like references. Treat `<h2>` or `##` as headings, `<ul>` or `-` as lists, and `<p>` as paragraphs. Ignore attributes and focus on the text content. If something looks like code or a style tag, ignore it.
+import os
 from datetime import datetime
 import argparse
 
@@ -84,7 +84,8 @@ if __name__ == "__main__":
                                  "rag_HyDE_hybrid",
                                  "prompt_eng",
                                  "reduced_top_k",
-                                 "prompt_eng_threshold"
+                                 "prompt_eng_threshold",
+                                 "sentence_model_variation"
                                  ],
                         )
 
