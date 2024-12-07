@@ -1,7 +1,8 @@
 .vscode
 __pycache__
 api_responses
-data
+/data/
+!/output/data/
 
 
 # Python

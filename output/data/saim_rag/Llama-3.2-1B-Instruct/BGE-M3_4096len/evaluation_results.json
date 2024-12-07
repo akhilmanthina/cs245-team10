@@ -1,0 +1,11 @@
+{
+    "score": -0.0913857677902622,
+    "exact_accuracy": 0.06591760299625468,
+    "accuracy": 0.40074906367041196,
+    "hallucination": 0.49213483146067416,
+    "missing": 0.10711610486891386,
+    "n_miss": 143,
+    "n_correct": 535,
+    "n_correct_exact": 88,
+    "total": 1335
+}
