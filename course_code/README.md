@@ -45,7 +45,28 @@ Since we have multiple models that focus on different aspects of improvement, we
    - The LLM processes the query and the references (now weighted by cosine scores) and generates an answer.
 
 
-[YOU GUYS CAN ADD YOUR PIPELINES HERE]
+## Sentence Model Variation
+
+**Note: There are many different outputs under different folders for this model underneath `/output/data/sentence_model_variation/Llama-3.2-1B-Instruct/...` because we ran this same model many (14) times to test small configuration changes. These included the HTML parser, chunk size, top k retrieve number, max context length, and the sentence models. Thus, it didn't make sense to make 14 different models to go along with all of the outputs we reference in our report, so there is just one model file to refer to that relates to all the outputs.**
+
+1. **Text Parsing**
+   - The webpages are passed to a BeautifulSoup or Newspaper3k parser which extracts the plaintext from the HTML document.
+   - The page snippet (summary) is also stored.
+   - These are stored in a LlamaCore `Document` object to be used later in the pipeline.
+
+2. **Text Chunking**
+   - We use the LlamaCore `SentenceSplitter` to split up the text into chunks. We use this because `SentenceSplitter` does its best to chunk sentences and paragraphs together, avoiding leaving a dangling sentence/paragraph. This seems to be the best middle ground between complete token-level and sentence-level chunking.
+
+3. **VectorDB and Dense Embedding Comparison**
+   - We use a LlamaCore `VectorDB` to store the text embeddings which are generated with the sentence_model. We ran multiple tests with different sentence models including all-MiniLM-L6-v2, BAAI/bge-m3, and thenlper/gte-large.
+   - Based on embedding similarity, the top `similarity_top_k` chunks are pulled. We tested 10, 15, and 20 for this value in our tests.
+
+4. **Semantic Comparison**
+   - We use a BAAI/bge-reranker-v2-m3 reranker model to do a semantic similarity comparison between the top `similarity_top_k` nodes and the query. The top 5 most related objects are returned and used for the QA procedure.
+
+5. **Answer Generation**
+   - From here, the procedure is the same as the RAG baseline. The top 5 nodes are fed into the `formatted_prompts` function, which is mostly similar. 
+      - There is a small alteration to the user_message which tells the model to "think step by step and then provide the final answer" to promote CoT reasoning. However, we did not notice a significant enough difference to justify including it in our report, which is already dense with tables.
 
 # Setup Instructions & Execution Steps 
 
@@ -64,6 +85,8 @@ conda create -n crag python=3.10
 conda activate crag
 pip install -r requirements.txt
 pip install --upgrade openai
+# Run this if you want to run sentence_model_variation. This includes the LlamaCore package and the relevant dependencies for newspaper3k
+pip install llama-index llama-index-embeddings-huggingface newspaper3k lxml[html_clean]
 export CUDA_VISIBLE_DEVICES=0
 ```
 
@@ -72,6 +95,7 @@ You will need to make an account.
 Place the file into the `./data` directory. 
 
 ### Note: a powerful GPU is required to execute the following models!
+Specifically, the `sentence_model_variation` model will *need* an L4 GPU from GCP rather than a T4 GPU. This is because the more complex sentence models we used require upwards of 22-23gb of memory. And this was just testing on the 1B parameter model...
 
 ## Execution Steps
 
@@ -85,7 +109,7 @@ The generated predictions are saved under the `./output/data/{model_name` direct
 
 Different models can be used by changing the model name.
 
-# List of different models:
+# List of different models:v
   - vanilla_baseline
   - rag_baseline
   - rag_HyDE
@@ -93,7 +117,7 @@ Different models can be used by changing the model name.
   - prompt_eng
   - reduced_top_k
   - prompt_eng_threshold
-  [ ADD UR MODELS HERE]
+  - sentence_model_variation
   
  To evaluate the model performance use:
  
@@ -102,3 +126,4 @@ Different models can be used by changing the model name.
  ```
  
  Insert the same model name as for the generations. 
+ To evaluate existing results (our submission) for `sentence_model_variation`, you will need to pick out the exact `predictions.json` file you wish to evaluate from the many test runs and move it to the outer directory. From there, you can run evaluate as normal.
