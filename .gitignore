@@ -33,6 +33,9 @@ wandb
 
 .idea/
 
+# Ensure /output is tracked
+!output/
+!output/**
 
 # github python gitignore
 # Byte-compiled / optimized / DLL files

@@ -92,16 +92,19 @@ if __name__ == "__main__":
 
     parser.add_argument("--model_name", type=str, default="vanilla_baseline",
                         choices=["vanilla_baseline",
-                                 "rag_baseline"
+                                 "rag_baseline",
                                  # add your model here
+                                 "prompt_eng",
+                                 "reduced_top_k",
+                                 "prompt_eng_threshold"
                                  ],
                         )
 
     parser.add_argument("--llm_name", type=str, default="meta-llama/Llama-3.2-3B-Instruct",
                         choices=["meta-llama/Llama-3.2-3B-Instruct",
                                  "google/gemma-2-2b-it",
-                                 "meta-llama/Llama-3.2-1B-Instruct"
                                  # can add more llm models here
+                                 "meta-llama/Llama-3.2-1B-Instruct",
                                  ])
     parser.add_argument("--is_server", action="store_true", default=False,
                         help="Whether we use vLLM deployed on a server or offline inference.")
@@ -131,8 +134,15 @@ if __name__ == "__main__":
     elif model_name == "rag_baseline":
         from rag_baseline import RAGModel
         model = RAGModel(llm_name=llm_name, is_server=args.is_server, vllm_server=args.vllm_server)
-    # elif model_name == "your_model":
-    #     add your model here
+    elif model_name == "prompt_eng":
+        from prompt_eng import PromptModel
+        model = PromptModel(llm_name=llm_name, is_server=args.is_server, vllm_server=args.vllm_server)
+    elif model_name == "reduced_top_k":
+        from reduced_top_k import ThresholdScoreModel
+        model = ThresholdScoreModel(llm_name=llm_name, is_server=args.is_server, vllm_server=args.vllm_server)
+    elif model_name == "prompt_eng_threshold":
+        from prompt_eng_threshold import ThresholdPromptModel
+        model = ThresholdPromptModel(llm_name=llm_name, is_server=args.is_server, vllm_server=args.vllm_server)
     else:
         raise ValueError("Model name not recognized.")
 
