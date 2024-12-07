@@ -11,7 +11,7 @@ from openai import OpenAI
 
 from transformers import AutoTokenizer
 
-from htmlrag import clean_html, build_block_tree, EmbedHTMLPruner
+from htmlrag import clean_html, build_block_tree, EmbedHTMLPruner, BM25HTMLPruner, GenHTMLPruner
 
 #### CONFIG PARAMETERS ---
 
@@ -22,7 +22,7 @@ MAX_CONTEXT_SENTENCE_LENGTH = 1000
 # Set the maximum context references length (in characters).
 MAX_CONTEXT_REFERENCES_LENGTH = 4000
 # Set the maximum context window (in tokens) for pruning the HTML blocks.
-MAX_CONTEXT_WINDOW = 512  # Adjust this value as needed.
+MAX_CONTEXT_WINDOW = 2048  # Adjust this value as needed.
 
 # Batch size you wish the evaluators will use to call the `batch_generate_answer` function
 AICROWD_SUBMISSION_BATCH_SIZE = 1  # TUNE THIS VARIABLE depending on the number of GPUs you are requesting and the size of your model.
@@ -36,7 +36,6 @@ SENTENCE_TRANSFORMER_BATCH_SIZE = 32  # TUNE THIS VARIABLE depending on the size
 
 #### CONFIG PARAMETERS END---
 
-
 class RAGModel:
     """
     An example RAGModel for the KDDCup 2024 Meta CRAG Challenge
@@ -45,14 +44,16 @@ class RAGModel:
 
     def __init__(self, llm_name="meta-llama/Llama-3.2-3B-Instruct", is_server=False, vllm_server=None):
         self.initialize_models(llm_name, is_server, vllm_server)
-        # Initialize the HTML pruner with EmbedHTMLPruner
-        embed_model_name = "all-MiniLM-L6-v2"
-        query_instruction = "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: "
-        self.html_pruner = EmbedHTMLPruner(
+        embed_model_name = "BAAI/bge-large-en-v1.5"
+        query_instruction = """
+            Instruct: Given the document, retrieve relevant passages that directly answer the query.\nQuery: 
+            """
+        self.html_pruner_embed = EmbedHTMLPruner(
             embed_model=embed_model_name,
             local_inference=True,
             query_instruction_for_retrieval=query_instruction, 
         )
+        self.html_pruner_bm25 = BM25HTMLPruner()
 
     def initialize_models(self, llm_name, is_server, vllm_server):
         self.llm_name = llm_name
@@ -110,36 +111,36 @@ class RAGModel:
         query_times = batch["query_time"]
 
         batch_retrieval_results = []
+        EXIT_FLAG = 0
         for idx, interaction_id in enumerate(batch_interaction_ids):
             query = queries[idx]
             query_time = query_times[idx]
             search_results = batch_search_results[idx]  # List of search results for this query
 
-            pruned_texts = []
-            for search_result in search_results:
+            pruned_htmls = []
+            for i, search_result in enumerate(search_results):
                 html_content = search_result['page_result']
-                # Process html_content with htmlrag
-                # Clean HTML
+                # Process html_content with embed
                 simplified_html = clean_html(html_content)
-                # Build block tree
-                block_tree, simplified_html = build_block_tree(simplified_html)
-                # Use EmbedHTMLPruner to get block rankings
-                block_rankings = self.html_pruner.calculate_block_rankings(query, simplified_html, block_tree)
-                # Prune HTML
-                pruned_html = self.html_pruner.prune_HTML(
-                    simplified_html, block_tree, block_rankings, self.chat_tokenizer, MAX_CONTEXT_WINDOW
+                if '<html' not in simplified_html.lower():
+                        #print(f"empty html at index {i}")
+                        simplified_html = f"<html>{simplified_html}</html>"
+
+                pruned_html = simplified_html
+                block_tree, pruned_html = build_block_tree(pruned_html, max_node_words=200)
+                block_rankings = self.html_pruner_embed.calculate_block_rankings(query, pruned_html, block_tree)
+
+                pruned_html = self.html_pruner_embed.prune_HTML(
+                    pruned_html, block_tree, block_rankings, self.chat_tokenizer, 500
                 )
-                # Extract text from pruned_html
-                soup = BeautifulSoup(pruned_html, "lxml")
-                text = soup.get_text(" ", strip=True)
-                if text:
-                    pruned_texts.append(text)
-            print(f"PROMPT: {query}")
-            print(f"PRUNED TEXTS: {pruned_texts}")
-            # Combine all pruned texts, limit to NUM_CONTEXT_SENTENCES
-            if pruned_texts:
-                # Optionally, limit the number of pruned texts
-                retrieval_results = pruned_texts[:NUM_CONTEXT_SENTENCES]
+                pruned_htmls.append(f"HTML {i+1}: {pruned_html}")
+
+            if EXIT_FLAG == 1:
+                print(pruned_htmls)
+                print(query)
+                exit()
+            if pruned_htmls:
+                retrieval_results = pruned_htmls
             else:
                 retrieval_results = []
 
@@ -186,7 +187,7 @@ class RAGModel:
             - query_times (List[str]): A list of query_time strings corresponding to each query.
             - batch_retrieval_results (List[List[str]]): A list of retrieval results for each query.
         """
-        system_prompt = "You are provided with a question and various references. Your task is to answer the question succinctly, using the fewest words possible. If the references do not contain the necessary information to answer the question, respond with 'I don't know'. There is no need to explain the reasoning behind your answers."
+        system_prompt = "You are provided with partially cleaned HTML-like references. Treat `<h2>` or `##` as headings, `<ul>` or `-` as lists, and `<p>` as paragraphs. Ignore attributes and focus on the text content. If something looks like code or a style tag, ignore it. Your task is to answer the question succinctly, using the fewest words possible. If the references do not contain the necessary information to answer the question, respond with 'I don't know'. There is no need to explain the reasoning behind your answers."
         formatted_prompts = []
 
         for _idx, query in enumerate(queries):
@@ -207,8 +208,8 @@ class RAGModel:
 
             user_message += f"{references}\n------\n\n"
             user_message
-            user_message += f"Using only the references listed above, answer the following question: \n"
-            user_message += f"Current Time: {query_time}\n"
+            user_message += f"Using only the HTML formatted references listed above, answer the following question: \n"
+            #user_message += f"Current Time: {query_time}\n"
             user_message += f"Question: {query}\n"
 
             if self.is_server:
