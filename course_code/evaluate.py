@@ -82,6 +82,9 @@ if __name__ == "__main__":
                                  "html_rag_embed"
                                  "rag_HyDE",
                                  "rag_HyDE_hybrid",
+                                 "prompt_eng",
+                                 "reduced_top_k",
+                                 "prompt_eng_threshold"
                                  ],
                         )
 
